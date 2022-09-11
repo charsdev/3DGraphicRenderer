@@ -1,13 +1,15 @@
 #include <stdio.h>
+#include <SDL2/SDL.h>
 #include "Display.h"
 #include "Vector.h"
+#include "Mesh.h"
 
-#define NPOINTS (9*9*9)
+
 #define FOVFACTOR 640
 
-vec3_t cube_points[NPOINTS];
-vec2_t projectedPoints[NPOINTS];
-vec3_t cameraPosition = { .x = 0, .y = 0, .z = -5 };
+triangle_t triangles_to_render[N_MESH_FACES];
+
+vec3_t cameraPosition = { .x = 0, .y = 0, .z = -10 };
 vec3_t cubeRotation = {.x = 0, .y = 0, .z = 0};
 
 int previousFrameTime = 0;
@@ -35,14 +37,6 @@ bool setup(void) {
 	}
 
 	int pointCount = 0;
-	for (float x = -1; x <= 1; x += 0.25) {
-		for (float y = -1; y <= 1; y += 0.25) {
-			for (float z = -1; z <= 1; z += 0.25) {
-				vec3_t point = {.x = x, .y = y, .z = z };
-				cube_points[pointCount++] = point;
-			}
-		}
-	}
 
 	return true;
 }
@@ -83,55 +77,70 @@ vec2_t persepective_project(vec3_t point) {
 }
 
 void update(void) {
-	/*if (!SDL_TICKS_PASSED(SDL_GetTicks(), previousFrameTime + FRAME_TARGET_TIME))
-		return;*/
+	if (!SDL_TICKS_PASSED(SDL_GetTicks(), previousFrameTime + FRAME_TARGET_TIME))
+		return;
 
-	//previousFrameTime = SDL_GetTicks();
+	previousFrameTime = SDL_GetTicks();
 
-	int waitTime = SDL_GetTicks() - previousFrameTime - FRAME_TARGET_TIME;
+	//int waitTime = SDL_GetTicks() - previousFrameTime - FRAME_TARGET_TIME;
 
-	if (waitTime >= 0 && waitTime <= FRAME_TARGET_TIME) {
-		SDL_Delay(waitTime);
+	//if (waitTime >= 0 && waitTime <= FRAME_TARGET_TIME) {
+	//	SDL_Delay(waitTime);
+	//}
+
+	cubeRotation.y += 0.01f;
+	cubeRotation.x += 0.01f;
+	cubeRotation.z += 0.01f;
+
+	//Loop all thre vertices of this current face and apply transformation
+	for (size_t i = 0; i < N_MESH_FACES; i++)
+	{
+		face_t mesh_face = mesh_faces[i];
+		vec3_t face_vertices[3];
+		face_vertices[0] = mesh_vertices[mesh_face.a - 1];
+		face_vertices[1] = mesh_vertices[mesh_face.b - 1];
+		face_vertices[2] = mesh_vertices[mesh_face.c - 1];
+
+		triangle_t projected_triangle;
+
+		for (size_t j = 0; j < 3; j++)
+		{
+			vec3_t transformed_vertex = face_vertices[j];
+			transformed_vertex = vec3_rotate_x(transformed_vertex, cubeRotation.x);
+			transformed_vertex = vec3_rotate_y(transformed_vertex, cubeRotation.y);
+			transformed_vertex = vec3_rotate_z(transformed_vertex, cubeRotation.z);
+
+			//translate the vertex away from the camera
+			transformed_vertex.z -= cameraPosition.z;
+
+			//project the current vertex
+			vec2_t projected_point = persepective_project(transformed_vertex);
+
+			//scale and translate the project points to the middle of the screen
+			projected_point.x += (windowWidth / 2);
+			projected_point.y += (windowHeight / 2);
+			projected_triangle.points[j] = projected_point;
+
+		}
+		// save the projected triangle in the array of triangles to render
+		triangles_to_render[i] = projected_triangle;
 	}
 
-	cubeRotation.y += 0.001f;
-	cubeRotation.x += 0.001f;
-	cubeRotation.z += 0.001f;
-
-	for (int i =  0; i < NPOINTS; i++) {
-		vec3_t point = cube_points[i];
-		vec3_t transformed_point = vec3_rotate_x(point, cubeRotation.x);
-		transformed_point = vec3_rotate_y(transformed_point, cubeRotation.y);
-		transformed_point = vec3_rotate_z(transformed_point, cubeRotation.z);
-
-		transformed_point.z -= cameraPosition.z;
-		vec2_t projectedPoint = persepective_project(transformed_point);
-		projectedPoints[i] = projectedPoint;
-	}
 }
 
 void render(void) {
-	//SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-	//SDL_RenderClear(renderer);
 
-	drawGrid(0xFFFFFFF);
+	//drawGrid(0xFFFFFFF);
 	
-	for (size_t i = 0; i < NPOINTS; i++)	{
-		vec2_t projected_point = projectedPoints[i];
-		drawRect(
-			projected_point.x + (windowWidth / 2),
-			projected_point.y + (windowHeight / 2), 
-			4,
-			4,
-			0xFFFFFF00);
+	for (size_t i = 0; i < N_MESH_FACES; i++)	{
+		triangle_t triangle = triangles_to_render[i];
+		drawRect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFFF00);
+		drawRect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFFF00);
+		drawRect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFFF00);
 	}
 	
-	//drawRect(windowWidth/2, windowHeight / 2, 100, 100, 0xFFFFFFF);
-
 	renderColorBuffer();
-	//clearColorBuffer(0x0000FF);
 	clearColorBuffer2(0x000000);
-
 	SDL_RenderPresent(renderer);
 }
 
