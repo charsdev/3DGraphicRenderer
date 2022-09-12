@@ -4,7 +4,6 @@
 #include "Vector.h"
 #include "Mesh.h"
 
-
 #define FOVFACTOR 640
 
 triangle_t triangles_to_render[N_MESH_FACES];
@@ -132,13 +131,20 @@ void render(void) {
 
 	//drawGrid(0xFFFFFFF);
 	
-	for (size_t i = 0; i < N_MESH_FACES; i++)	{
-		triangle_t triangle = triangles_to_render[i];
-		drawRect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFFF00);
-		drawRect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFFF00);
-		drawRect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFFF00);
-	}
+	 for (size_t i = 0; i < N_MESH_FACES; i++)	{
+	 	triangle_t triangle = triangles_to_render[i];
+	 	drawRect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFFF00);
+	 	drawRect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFFF00);
+	 	drawRect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFFF00);
+		
+		drawTriangle(
+			triangle.points[0].x, triangle.points[0].y,
+			triangle.points[1].x, triangle.points[1].y,
+			triangle.points[2].x, triangle.points[2].y,
+			0xFF00FF00);
+	 }
 	
+
 	renderColorBuffer();
 	clearColorBuffer2(0x000000);
 	SDL_RenderPresent(renderer);

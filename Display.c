@@ -1,12 +1,14 @@
 #include "Display.h"
 #include <stdio.h>
 
+
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 uint32_t* color_buffer = NULL;
 SDL_Texture* colorBufferTexture = NULL;
 int windowWidth = 800;
 int windowHeight = 600;
+
 
 bool initWindow(void) {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
@@ -57,7 +59,6 @@ void drawRect(int x, int y, int width, int height, uint32_t color) {
 		for (int j = 0; j < height; j++) {
 			int current_y = y + j;
 			int current_x = x + i;
-			// color_buffer[(windowWidth * current_y) + current_x] = color;
             drawPixel(current_x, current_y, color);
 		}
 	}
@@ -100,3 +101,30 @@ void destroyWindow(void) {
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 }
+
+void drawLineDDA(int x0, int y0, int x1, int y1, uint32_t color) {
+	int delta_x = x1 - x0;
+	int delta_y = y1 - y0;
+
+	int side_lenght = delta_x >= delta_y ? abs(delta_x) : abs(delta_y);
+
+	float x_increment = delta_x / (float)side_lenght;
+	float y_increment = delta_y / (float)side_lenght;
+
+	float current_x = x0;
+	float current_y = y0;
+
+	for (int i = 0; i <= side_lenght; i++) {
+		drawPixel(round(current_x), round(current_y), color);
+		current_x += x_increment;
+		current_y += y_increment;
+	}
+}
+
+void drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color) {
+	drawLineDDA(x0, y0, x1, y1, color);
+	drawLineDDA(x1, y1, x2, y2, color);
+	drawLineDDA(x2, y2, x0, y0, color);
+}
+
+
