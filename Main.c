@@ -1,15 +1,17 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include "Display.h"
+#include "Array.h"
 #include "Vector.h"
 #include "Mesh.h"
 
 #define FOVFACTOR 640
 
-triangle_t triangles_to_render[N_MESH_FACES];
+//triangle_t triangles_to_render[N_MESH_FACES];
+triangle_t* triangles_to_render;
 
 vec3_t cameraPosition = { .x = 0, .y = 0, .z = -10 };
-vec3_t cubeRotation = {.x = 0, .y = 0, .z = 0};
+vec3_t cubeRotation = { .x = 0, .y = 0, .z = 0 };
 
 int previousFrameTime = 0;
 bool is_running;
@@ -21,7 +23,7 @@ bool setup(void) {
 		fprintf(stderr, "Error creating Color Buffer\n");
 		return false;
 	}
-	
+
 	colorBufferTexture = SDL_CreateTexture(
 		renderer,
 		SDL_PIXELFORMAT_ARGB8888,
@@ -61,7 +63,7 @@ void processInput() {
 
 vec2_t ortographic_project(vec3_t point) {
 	vec2_t vec = {
-		.x = point.x * FOVFACTOR, 
+		.x = point.x * FOVFACTOR,
 		.y = point.y * FOVFACTOR
 	};
 	return vec;
@@ -76,23 +78,25 @@ vec2_t persepective_project(vec3_t point) {
 }
 
 void update(void) {
-	if (!SDL_TICKS_PASSED(SDL_GetTicks(), previousFrameTime + FRAME_TARGET_TIME))
-		return;
+	// Wait some time until the reach the target frame time in milliseconds
+	int time_to_wait = FRAME_TARGET_TIME - (SDL_GetTicks() - previousFrameTime);
+
+	// Only delay execution if we are running too fast
+	if (time_to_wait > 0 && time_to_wait <= FRAME_TARGET_TIME) {
+		SDL_Delay(time_to_wait);
+	}
 
 	previousFrameTime = SDL_GetTicks();
 
-	//int waitTime = SDL_GetTicks() - previousFrameTime - FRAME_TARGET_TIME;
 
-	//if (waitTime >= 0 && waitTime <= FRAME_TARGET_TIME) {
-	//	SDL_Delay(waitTime);
-	//}
+	triangles_to_render = NULL;
 
 	cubeRotation.y += 0.01f;
 	cubeRotation.x += 0.01f;
 	cubeRotation.z += 0.01f;
 
 	//Loop all thre vertices of this current face and apply transformation
-	for (size_t i = 0; i < N_MESH_FACES; i++)
+	for (int i = 0; i < N_MESH_FACES; i++)
 	{
 		face_t mesh_face = mesh_faces[i];
 		vec3_t face_vertices[3];
@@ -119,35 +123,35 @@ void update(void) {
 			projected_point.x += (windowWidth / 2);
 			projected_point.y += (windowHeight / 2);
 			projected_triangle.points[j] = projected_point;
-
 		}
 		// save the projected triangle in the array of triangles to render
-		triangles_to_render[i] = projected_triangle;
+		//triangles_to_render[i] = projected_triangle;
+		array_push(triangles_to_render, projected_triangle);
 	}
 
 }
 
 void render(void) {
+	drawGrid(0xFFFFFFF);
 
-	//drawGrid(0xFFFFFFF);
-	
-	 for (size_t i = 0; i < N_MESH_FACES; i++)	{
-	 	triangle_t triangle = triangles_to_render[i];
-	 	drawRect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFFF00);
-	 	drawRect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFFF00);
-	 	drawRect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFFF00);
-		
+	for (size_t i = 0; i < array_length(triangles_to_render); i++) {
+		triangle_t triangle = triangles_to_render[i];
+		drawRect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFFF00);
+		drawRect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFFF00);
+		drawRect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFFF00);
+
 		drawTriangle(
 			triangle.points[0].x, triangle.points[0].y,
 			triangle.points[1].x, triangle.points[1].y,
 			triangle.points[2].x, triangle.points[2].y,
 			0xFF00FF00);
-	 }
-	
+	}
 
+	array_free(triangles_to_render);
 	renderColorBuffer();
 	clearColorBuffer2(0x000000);
 	SDL_RenderPresent(renderer);
+
 }
 
 int main(int argc, char* args[]) {
