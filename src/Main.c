@@ -1,20 +1,21 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <SDL2/SDL.h>
-#include "Display.h"
 #include "Array.h"
+#include "Display.h"
 #include "Vector.h"
 #include "Mesh.h"
+//#include <crtdbg.h>
 
 #define FOVFACTOR 640
 
-//triangle_t triangles_to_render[N_MESH_FACES];
-triangle_t* triangles_to_render;
+triangle_t* triangles_to_render = NULL;
 
-vec3_t cameraPosition = { .x = 0, .y = 0, .z = -10 };
-vec3_t cubeRotation = { .x = 0, .y = 0, .z = 0 };
+vec3_t cameraPosition = { .x = 0, .y = 0, .z = 0 };
 
+bool is_running = false;
 int previousFrameTime = 0;
-bool is_running;
 
 bool setup(void) {
 	color_buffer = (uint32_t)malloc(sizeof(uint32_t) * windowHeight * windowWidth);
@@ -37,29 +38,48 @@ bool setup(void) {
 		return false;
 	}
 
-	int pointCount = 0;
-
+	load_cube_mesh_data();
+	//load_obj_file_data("Assets/cube.obj");
 	return true;
 }
 
 void processInput() {
+
+	//const Uint8* currentKeyStates = SDL_GetKeyboardState(NULL);
+
+	//if (currentKeyStates[SDL_SCANCODE_UP])
+	//{
+	//	cameraPosition.z += 0.1f;
+	//}
+	//else if (currentKeyStates[SDL_SCANCODE_DOWN])
+	//{
+	//	cameraPosition.z -= 0.1f;
+	//}
+	//else if (currentKeyStates[SDL_SCANCODE_LEFT])
+	//{
+	//	mesh.rotation.x -= 0.1;
+	//}
+	//else if (currentKeyStates[SDL_SCANCODE_RIGHT])
+	//{
+	//	mesh.rotation.x += 0.1;
+	//}
+
+
 	SDL_Event event;
 	SDL_PollEvent(&event);
 	switch (event.type) {
-	case SDL_QUIT:
-		is_running = false;
-		break;
-	case SDL_KEYDOWN:
-		if (event.key.keysym.scancode == 41) {
-			SDL_SetWindowSize(window, 800, 600);
-			SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-		}
-		printf("press key %i", (int)event.key.keysym.scancode);
-
-		break;
+		case SDL_QUIT:
+			is_running = false;
+			break;
+		case SDL_KEYDOWN:
+			/*if (event.key.keysym.scancode == 26) {
+			}
+			if (event.key.keysym.scancode == 22) {
+			}*/
+			printf("press key %i", (int)event.key.keysym.scancode);
+			break;
 	}
 }
-
 
 vec2_t ortographic_project(vec3_t point) {
 	vec2_t vec = {
@@ -87,37 +107,57 @@ void update(void) {
 	}
 
 	previousFrameTime = SDL_GetTicks();
-
-
 	triangles_to_render = NULL;
 
-	cubeRotation.y += 0.01f;
-	cubeRotation.x += 0.01f;
-	cubeRotation.z += 0.01f;
+	mesh.rotation.x += 0.01;
+	mesh.rotation.y += 0.01;
+	mesh.rotation.z += 0.02;
 
 	//Loop all thre vertices of this current face and apply transformation
-	for (int i = 0; i < N_MESH_FACES; i++)
-	{
-		face_t mesh_face = mesh_faces[i];
+	int num_faces = array_length(mesh.faces);
+	for (int i = 0; i < num_faces; i++) {
+		face_t mesh_face = mesh.faces[i];
 		vec3_t face_vertices[3];
-		face_vertices[0] = mesh_vertices[mesh_face.a - 1];
-		face_vertices[1] = mesh_vertices[mesh_face.b - 1];
-		face_vertices[2] = mesh_vertices[mesh_face.c - 1];
+		face_vertices[0] = mesh.vertices[mesh_face.a - 1];
+		face_vertices[1] = mesh.vertices[mesh_face.b - 1];
+		face_vertices[2] = mesh.vertices[mesh_face.c - 1];
+
+		vec3_t transformed_vertices[3];
+
+		for (int j = 0; j < 3; j++) {
+			vec3_t transformed_vertex = face_vertices[j];
+			transformed_vertex = vec3_rotate_x(transformed_vertex, mesh.rotation.x);
+			transformed_vertex = vec3_rotate_y(transformed_vertex, mesh.rotation.y);
+			transformed_vertex = vec3_rotate_z(transformed_vertex, mesh.rotation.z);
+
+			//translate the vertex away from the camera
+			transformed_vertex.z += 5;
+			transformed_vertices[j] = transformed_vertex;
+		}
+
+		vec3_t a = transformed_vertices[0];
+		vec3_t b = transformed_vertices[1];
+		vec3_t c = transformed_vertices[2];
+
+		vec3_t ba = vec3_sub(&b, &a);
+		vec3_t ca = vec3_sub(&c, &a);
+
+		vec3_t normal = vec3_cross(&ba, &ca);
+		vec3_t cameraRay = vec3_sub(&cameraPosition, &a);
+
+		float dot = vec3_dot(&normal, &cameraRay);
+
+		// go to next iteration
+		if (dot < 0) {
+			continue;
+		}
 
 		triangle_t projected_triangle;
 
-		for (size_t j = 0; j < 3; j++)
+		for (int j = 0; j < 3; j++)
 		{
-			vec3_t transformed_vertex = face_vertices[j];
-			transformed_vertex = vec3_rotate_x(transformed_vertex, cubeRotation.x);
-			transformed_vertex = vec3_rotate_y(transformed_vertex, cubeRotation.y);
-			transformed_vertex = vec3_rotate_z(transformed_vertex, cubeRotation.z);
-
-			//translate the vertex away from the camera
-			transformed_vertex.z -= cameraPosition.z;
-
 			//project the current vertex
-			vec2_t projected_point = persepective_project(transformed_vertex);
+			vec2_t projected_point = persepective_project(transformed_vertices[j]);
 
 			//scale and translate the project points to the middle of the screen
 			projected_point.x += (windowWidth / 2);
@@ -125,16 +165,16 @@ void update(void) {
 			projected_triangle.points[j] = projected_point;
 		}
 		// save the projected triangle in the array of triangles to render
-		//triangles_to_render[i] = projected_triangle;
 		array_push(triangles_to_render, projected_triangle);
 	}
 
 }
 
 void render(void) {
-	drawGrid(0xFFFFFFF);
+	//drawGrid(0xFFFFFFF);
+	int num_triangles = array_length(triangles_to_render);
 
-	for (size_t i = 0; i < array_length(triangles_to_render); i++) {
+	for (int i = 0; i < num_triangles; i++) {
 		triangle_t triangle = triangles_to_render[i];
 		drawRect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFFF00);
 		drawRect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFFF00);
@@ -144,14 +184,21 @@ void render(void) {
 			triangle.points[0].x, triangle.points[0].y,
 			triangle.points[1].x, triangle.points[1].y,
 			triangle.points[2].x, triangle.points[2].y,
-			0xFF00FF00);
+			0xFF00FF00
+		);
 	}
 
 	array_free(triangles_to_render);
 	renderColorBuffer();
 	clearColorBuffer2(0x000000);
-	SDL_RenderPresent(renderer);
 
+	SDL_RenderPresent(renderer);
+}
+
+void freeResources(void) {
+	free(color_buffer);
+	array_free(mesh.faces);
+	array_free(mesh.vertices);
 }
 
 int main(int argc, char* args[]) {
@@ -166,6 +213,7 @@ int main(int argc, char* args[]) {
 	}
 
 	destroyWindow();
-
+	freeResources();
+	//_CrtDumpMemoryLeaks();
 	return 0;
 }

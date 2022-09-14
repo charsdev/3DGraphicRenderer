@@ -96,7 +96,6 @@ extern void drawPixel(int x, int y, uint32_t color) {
 }
 
 void destroyWindow(void) {
-	free(color_buffer);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();

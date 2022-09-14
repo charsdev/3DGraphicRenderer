@@ -11,7 +11,7 @@
 extern SDL_Window* window;
 extern SDL_Renderer* renderer;
 extern uint32_t* color_buffer;
-SDL_Texture* colorBufferTexture;
+extern SDL_Texture* colorBufferTexture;
 extern int windowWidth;
 extern int windowHeight;
 
