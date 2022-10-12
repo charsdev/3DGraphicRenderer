@@ -21,17 +21,30 @@
   <ItemGroup>
     <ClCompile Include="src\Array.c" />
     <ClCompile Include="src\Camera.c" />
+    <ClCompile Include="src\Clipping.c" />
     <ClCompile Include="src\Display.c" />
+    <ClCompile Include="src\Light.c" />
     <ClCompile Include="src\Main.c" />
+    <ClCompile Include="src\Matrix.c" />
     <ClCompile Include="src\Mesh.c" />
+    <ClCompile Include="src\Swap.c" />
+    <ClCompile Include="src\Texture.c" />
+    <ClCompile Include="src\Triangle.c" />
+    <ClCompile Include="src\Upng.c" />
     <ClCompile Include="src\Vector.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Array.h" />
     <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\Clipping.h" />
     <ClInclude Include="src\Display.h" />
+    <ClInclude Include="src\Light.h" />
+    <ClInclude Include="src\Matrix.h" />
     <ClInclude Include="src\Mesh.h" />
+    <ClInclude Include="src\Swap.h" />
+    <ClInclude Include="src\Texture.h" />
     <ClInclude Include="src\Triangle.h" />
+    <ClInclude Include="src\Upng.h" />
     <ClInclude Include="src\Vector.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

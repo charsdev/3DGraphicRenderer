@@ -5,24 +5,47 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
-#define FPS 30
-#define FRAME_TARGET_TIME (1000/ FPS)
+#define FPS 120
+#define FRAME_TARGET_TIME (1000 / FPS)
 
-extern SDL_Window* window;
-extern SDL_Renderer* renderer;
-extern uint32_t* color_buffer;
-extern SDL_Texture* colorBufferTexture;
-extern int windowWidth;
-extern int windowHeight;
+enum cull_method {
+    CULL_NONE,
+    CULL_BACKFACE
+};
 
-bool initWindow(void);
-void drawGrid(uint32_t color);
-void drawRect(int x, int y, int width, int height, uint32_t color);
-void clearColorBuffer(uint32_t color);
-void clearColorBuffer2(uint32_t color);
-void renderColorBuffer(void);
-inline void drawPixel(int x, int y, uint32_t color);
-void destroyWindow(void);
-void drawLineDDA(int x0, int y0, int x1, int y1, uint32_t color);
-void drawTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color);
-#endif // DISPLAY_H
+enum render_method {
+    RENDER_WIRE,
+    RENDER_WIRE_VERTEX,
+    RENDER_FILL_TRIANGLE,
+    RENDER_FILL_TRIANGLE_WIRE,
+    RENDER_TEXTURED,
+    RENDER_TEXTURED_WIRE
+};
+
+bool init_window(void);
+int get_window_width(void);
+int get_window_height(void);
+
+void set_render_method(int method);
+void set_cull_method(int method);
+bool should_render_wire(void);
+bool should_render_wire_vertex(void);
+bool should_render_textured_triangle(void);
+bool should_render_filled_triangle(void);
+bool should_cull_backface(void);
+
+void draw_grid(uint32_t color);
+void draw_pixel(int x, int y, uint32_t color);
+void draw_line(int x0, int y0, int x1, int y1, uint32_t color);
+void draw_rect(int x, int y, int width, int height, uint32_t color);
+
+void clear_color_buffer(uint32_t color);
+void clear_z_buffer(void);
+void render_color_buffer(void);
+
+float get_zbuffer_at(int x, int y);
+void update_zbuffer_at(int x, int y, float value);
+
+void destroy_window(void);
+
+#endif

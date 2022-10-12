@@ -1,95 +1,103 @@
 #include <stdio.h>
+#include <string.h>
 #include "Array.h"
 #include "Mesh.h"
-#include "String.h"
 
-mesh_t mesh = {
-	.vertices = NULL,
-	.faces = NULL,
-	.rotation = {0,0,0}
-};
+#define MAX_NUM_MESHES 100
+static mesh_t meshes[MAX_NUM_MESHES];
+static int mesh_count = 0;
 
-vec3_t cube_vertices[N_CUBE_VERTICES] = {
-   {.x = -1, .y = -1, .z = -1 }, // 1
-   {.x = -1, .y = 1, .z = -1 }, // 2
-   {.x = 1, .y = 1, .z = -1 }, // 3
-   {.x = 1, .y = -1, .z = -1 }, // 4
-   {.x = 1, .y = 1, .z = 1 }, // 5
-   {.x = 1, .y = -1, .z = 1 }, // 6
-   {.x = -1, .y = 1, .z = 1 }, // 7
-   {.x = -1, .y = -1, .z = 1 }  // 8
-};
+void load_mesh_obj_data(mesh_t* mesh, char* obj_filename) {
+    FILE* file;
+    fopen_s(&file, obj_filename, "r");
+    char line[1024];
+    tex2_t* texcoords = NULL;
 
-face_t cube_faces[N_CUBE_FACES] = {
-	// front
-	{.a = 1, .b = 2, .c = 3 },
-	{.a = 1, .b = 3, .c = 4 },
-	// right
-	{.a = 4, .b = 3, .c = 5 },
-	{.a = 4, .b = 5, .c = 6 },
-	// back
-	{.a = 6, .b = 5, .c = 7 },
-	{.a = 6, .b = 7, .c = 8 },
-	// left
-	{.a = 8, .b = 7, .c = 2 },
-	{.a = 8, .b = 2, .c = 1 },
-	// top
-	{.a = 2, .b = 7, .c = 5 },
-	{.a = 2, .b = 5, .c = 3 },
-	// bottom
-	{.a = 6, .b = 8, .c = 1 },
-	{.a = 6, .b = 1, .c = 4 }
-};
-
-void load_cube_mesh_data(void) {
-	for (int i = 0; i < N_CUBE_VERTICES; i++) {
-		vec3_t cube_vertex = cube_vertices[i];
-		array_push(mesh.vertices, cube_vertex);
-	}
-	for (int i = 0; i < N_CUBE_FACES; i++) {
-		face_t cube_face = cube_faces[i];
-		array_push(mesh.faces, cube_face);
-	}
+    while (fgets(line, 1024, file)) {
+        // Vertex information
+        if (strncmp(line, "v ", 2) == 0) {
+            vec3_t vertex;
+            sscanf_s(line, "v %f %f %f", &vertex.x, &vertex.y, &vertex.z);
+            array_push(meshes[mesh_count].vertices, vertex);
+        }
+        // Texture coordinate information
+        if (strncmp(line, "vt ", 3) == 0) {
+            tex2_t texcoord;
+            sscanf_s(line, "vt %f %f", &texcoord.u, &texcoord.v);
+            array_push(texcoords, texcoord);
+        }
+        // Face information
+        if (strncmp(line, "f ", 2) == 0) {
+            int vertex_indices[3];
+            int texture_indices[3];
+            int normal_indices[3];
+            sscanf_s(
+                line, "f %d/%d/%d %d/%d/%d %d/%d/%d",
+                &vertex_indices[0], &texture_indices[0], &normal_indices[0],
+                &vertex_indices[1], &texture_indices[1], &normal_indices[1],
+                &vertex_indices[2], &texture_indices[2], &normal_indices[2]
+            );
+            face_t face = {
+                .a = vertex_indices[0],
+                .b = vertex_indices[1],
+                .c = vertex_indices[2],
+                .a_uv = texcoords[texture_indices[0] - 1],
+                .b_uv = texcoords[texture_indices[1] - 1],
+                .c_uv = texcoords[texture_indices[2] - 1],
+                .color = 0xFFFFFFFF
+            };
+            array_push(meshes[mesh_count].faces, face);
+        }
+    }
+    array_free(texcoords);
+    fclose(file);
 }
 
-void load_obj_file_data(char* filename) {
-	FILE* file;
-	fopen_s(&file, filename, "r");
-	printf("Line=%s", filename);
+void load_mesh_png_data(mesh_t* mesh, char* png_filename) {
+    upng_t* png_image = upng_new_from_file(png_filename);
+    if (png_image != NULL) {
+        upng_decode(png_image);
+        if (upng_get_error(png_image) == UPNG_EOK) {
+            mesh->texture = png_image;
+        }
+    }
+}
 
-	if (file == NULL) {
-		printf("\nError! opening file");
-	}
+void load_mesh(char* obj_filename, char* png_filename, vec3_t scale, vec3_t translation, vec3_t rotation) {
+    load_mesh_obj_data(&meshes[mesh_count], obj_filename);
+    load_mesh_png_data(&meshes[mesh_count], png_filename);
 
-	char line[1024];
-	while (fgets(line, 1024, file)) {
-		printf("Line=%s", line);
-		//vertex info
-		if (strncmp(line, "v ", 2) == 0) {
-			vec3_t vertex;
-			sscanf_s(line, "v %f %f %f", &vertex.x, &vertex.y, &vertex.z);
-			array_push(mesh.vertices, vertex);
-		}
-		//face info
-		if (strncmp(line, "f ", 2) == 0) {
-			int vertex_indices[3];
-			int texture_indices[3];
-			int normal_indices[3];
-			sscanf_s(line, "f %d/%d/%d %d/%d/%d %d/%d/%d",
-				&vertex_indices[0], &texture_indices[0], &normal_indices[0],
-				&vertex_indices[1], &texture_indices[1], &normal_indices[1],
-				&vertex_indices[2], &texture_indices[2], &normal_indices[2]
-			);
+    meshes[mesh_count].scale = scale;
+    meshes[mesh_count].translation = translation;
+    meshes[mesh_count].rotation = rotation;
 
-			face_t face = {
-				.a = vertex_indices[0],
-				.b = vertex_indices[1],
-				.c = vertex_indices[2]
-			};
+    mesh_count++;
+}
 
-			array_push(mesh.faces, face);
-		}
+mesh_t* get_mesh(int mesh_index) {
+    return &meshes[mesh_index];
+}
 
-	}
-	fclose(file);
+int get_num_meshes(void) {
+    return mesh_count;
+}
+
+void rotate_mesh_x(int mesh_index, float angle) {
+    meshes[mesh_index].rotation.x += angle;
+}
+
+void rotate_mesh_y(int mesh_index, float angle) {
+    meshes[mesh_index].rotation.y += angle;
+}
+
+void rotate_mesh_z(int mesh_index, float angle) {
+    meshes[mesh_index].rotation.z += angle;
+}
+
+void free_meshes(void) {
+    for (int i = 0; i < mesh_count; i++) {
+        array_free(meshes[i].faces);
+        array_free(meshes[i].vertices);
+        upng_free(meshes[i].texture);
+    }
 }

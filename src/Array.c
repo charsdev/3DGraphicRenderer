@@ -13,12 +13,10 @@ void* array_hold(void* array, int count, int item_size) {
         base[0] = count;  // capacity
         base[1] = count;  // occupied
         return base + 2;
-    }
-    else if (ARRAY_OCCUPIED(array) + count <= ARRAY_CAPACITY(array)) {
+    } else if (ARRAY_OCCUPIED(array) + count <= ARRAY_CAPACITY(array)) {
         ARRAY_OCCUPIED(array) += count;
         return array;
-    }
-    else {
+    } else {
         int needed_size = ARRAY_OCCUPIED(array) + count;
         int float_curr = ARRAY_CAPACITY(array) * 2;
         int capacity = needed_size > float_curr ? needed_size : float_curr;
